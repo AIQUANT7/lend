@@ -36,42 +36,42 @@ const StackValidator: Validator = {
 // console.log("cbor1 ", process.env.CBOR);
 // console.log("cbor2 ", process.env.CBOR2);
 
-// const RefiValidator: Validator = {
-//     type: "PlutusV2",
-//     script: process.env.REFI_CBOR!,
-// };
+const RefiValidator: Validator = {
+    type: "PlutusV2",
+    script: process.env.CBOR2!,
+};
 
 
 
 const StackContractAddress = await initLucid().then((lucid) =>
     validatorToAddress("Preprod", StackValidator)
 );
-console.log("Stack Contract Address:", StackContractAddress);
-// const refiContractAddress = await initLucid().then((lucid) =>
-//     validatorToAddress("Preprod", RefiValidator)
-// );
+// console.log("Stack Contract Address:", StackContractAddress);
+const refiContractAddress = await initLucid().then((lucid) =>
+    validatorToAddress("Preprod", RefiValidator)
+);
 // console.log("Refi Contract Address:", refiContractAddress);
 
 
 
 // Roadmap Datum Interface
-// interface RoadmapDatum {
-//     preId: string;
-//     roadmapId: string;
-//     roadmapName: string;
-//     roadmapDescription: string;
-//     progress: bigint;
-//     adminsPkh: string[]; // Array of admin PKHs
-//     prePkh: string;
-//     preSkh: string;
-//     totalPlasticCredits: bigint;
-//     soldPlasticCredits: bigint;
-//     totalPlasticTokens: bigint;
-//     sentPlasticTokens: bigint;
-//     totalPlastic: bigint;
-//     recoverPlastic: bigint;
-//     createdAt: string;
-// }
+interface RoadmapDatum {
+    preId: string;
+    roadmapId: string;
+    roadmapName: string;
+    roadmapDescription: string;
+    progress: bigint;
+    adminsPkh: string[]; // Array of admin PKHs
+    prePkh: string;
+    preSkh: string;
+    totalPlasticCredits: bigint;
+    soldPlasticCredits: bigint;
+    totalPlasticTokens: bigint;
+    sentPlasticTokens: bigint;
+    totalPlastic: bigint;
+    recoverPlastic: bigint;
+    createdAt: string;
+}
 // Parses Data → JS RoadmapDatum, expecting 15 fields in the Constr
 function parseRoadmapDatum(data: Data) {
     if (data instanceof Constr && data.index === 0) {
@@ -161,9 +161,9 @@ const initializeRoadmap = async (
         console.log("Admin Pkh:", adminPkh);
 
         // Check if roadmap already exists
-        const utxos = await lucid.utxosAt(StackContractAddress);
+        const utxos = await lucid.utxosAt(refiContractAddress);
         // console.log("UTxOs at refi contract:", refiContractAddress); // Log UTxOs for debugging
-        // console.log("UTxOs at refi contract:", utxos);
+        console.log("UTxOs at refi contract:", utxos);
 
         const matchedUtxo = utxos.find((utxo) => {
             if (!utxo.datum) return false;
@@ -247,6 +247,10 @@ const precisionFactor = 1_000_000n;
 const getPubKeyHash = async (lucid: LucidEvolution): Promise<string> => {
     const address = await lucid.wallet().address();
     const { paymentCredential } = getAddressDetails(address);
+
+    console.log("wallet-address ",address);
+    console.log("paymentCredentials ",paymentCredential.hash);
+    
     return paymentCredential?.hash || "";
 };
 
@@ -325,113 +329,16 @@ function buildLenderDatum(datum: LenderDatum): Constr<Data> {
 }
 
 // Parses Data → JS LenderDatum, expecting 4 fields in the Constr
-// function parseLenderDatum(data: Data): LenderDatum {
-//     // console.log("Attempting to parse datum:", data);
-
-
-//     if (data instanceof Constr && data.index === 0) {
-//         const [maybeAdminsPkh, maybeTotalPT, maybeTotalReward, maybeLendersData] =
-//             data.fields;
-//         // console.log(`maybeAdminsPkh ${maybeAdminsPkh}\nmaybeTotalPT ${maybeTotalPT}\nmaybeTotalReward ${maybeTotalReward}\nmaybeLendersData ${maybeLendersData}`);
-
-//         if (
-//             true
-//         ) {
-//             const adminsPkh: string[] = [];
-//             for (const pkh of maybeAdminsPkh) {
-//                 if (typeof pkh === "string") {
-//                     adminsPkh.push(pkh);
-//                 } else {
-//                     throw new Error("Invalid admin PKH format in array");
-//                 }
-//             }
-//             const lenders: [string, [bigint, bigint]][] = [];
-
-//             for (const lenderData of maybeLendersData) {
-//                 if (lenderData instanceof Constr && lenderData.index === 0) {
-//                     const [pkh, tupleData] = lenderData.fields;
-
-//                     if (
-//                         typeof pkh === "string" &&
-//                         tupleData instanceof Constr &&
-//                         tupleData.index === 0
-//                     ) {
-//                         const [balance, rewardDebt] = tupleData.fields;
-//                         if (typeof balance === "bigint" && typeof rewardDebt === "bigint") {
-//                             lenders.push([pkh, [balance, rewardDebt]]);
-//                         }
-//                     }
-//                 }
-//             }
-
-//             return {
-//                 adminsPkh: adminsPkh,
-//                 totalPT: maybeTotalPT,
-//                 totalReward: maybeTotalReward,
-//                 lenders,
-//             };
-//         }
-//     }
-//     throw new Error("Invalid datum format");
-
-
-// }
-// function parseLenderDatum(data: Data): LenderDatum {
-//     if (data instanceof Constr && data.index === 0) {
-//         const [maybeAdminsPkh, maybeTotalPT, maybeTotalReward, maybeLendersData] = data.fields;
-
-//         // Validate types
-//         if (
-
-//             !Array.isArray(maybeAdminsPkh) ||
-//             typeof maybeTotalPT !== 'bigint' ||
-//             typeof maybeTotalReward !== 'bigint' ||
-//             !Array.isArray(maybeLendersData)) {
-//             throw new Error("Invalid datum field types");
-//         }
-
-//         const adminsPkh: string[] = [];
-//         for (const pkh of maybeAdminsPkh) {
-//             if (typeof pkh !== 'string') {
-//                 throw new Error("Admin PKH must be string");
-//             }
-//             adminsPkh.push(pkh);
-//         }
-
-//         const lenders: [string, [bigint, bigint]][] = [];
-//         for (const lenderData of maybeLendersData) {
-//             if (lenderData instanceof Constr && lenderData.index === 0) {
-//                 const [pkh, tupleData] = lenderData.fields;
-//                 if (typeof pkh === 'string' &&
-//                     tupleData instanceof Constr &&
-//                     tupleData.index === 0) {
-//                     const [balance, rewardDebt] = tupleData.fields;
-//                     if (typeof balance === 'bigint' && typeof rewardDebt === 'bigint') {
-//                         lenders.push([pkh, [balance, rewardDebt]]);
-//                     }
-//                 }
-//             }
-//         }
-
-//         return {
-//             adminsPkh,
-//             totalPT: maybeTotalPT,
-//             totalReward: maybeTotalReward,
-//             lenders
-//         };
-//     }
-//     throw new Error("Invalid datum format - expected Constr with index 0");
-// }
 
 function parseLenderDatum(data: Data) {
-    console.log("data ",data);
+    // console.log("data ",data);
     if (data instanceof Constr && data.index === 0) {
 
         
         const [maybeAdminsPkh, maybeTotalPT, maybeTotalReward, maybeLendersData] = data.fields;
 
 
-        console.log(`maybeAdminsPkh ${maybeAdminsPkh}\nmaybeTotalPT ${maybeTotalPT}\nmaybeTotalReward ${maybeTotalReward}\nmaybeLendersData ${maybeLendersData}`);
+        // console.log(`maybeAdminsPkh ${maybeAdminsPkh}\nmaybeTotalPT ${maybeTotalPT}\nmaybeTotalReward ${maybeTotalReward}\nmaybeLendersData ${maybeLendersData}`);
         
         //     // Validate types
         if (
@@ -445,19 +352,33 @@ function parseLenderDatum(data: Data) {
 
 
             const adminsPkh: string[] = [];
+            // for (const pkh of maybeAdminsPkh) {
+            //     console.log("public key hash ", pkh);
+
+            //     if (typeof pkh === 'string') {
+            //         throw new Error("Admin PKH must be string");
+            //     }
+            //     // console.log("admins pkh ",);
+                
+            //     adminsPkh.push(pkh);
+            // }
             for (const pkh of maybeAdminsPkh) {
-                // console.log("public key hash ", pkh);
-
-                if (typeof pkh !== 'string') {
-                    throw new Error("Admin PKH must be string");
+                if (typeof pkh === "string") {
+                  adminsPkh.push(pkh);
+                } else {
+                  throw new Error("Invalid admin PKH format in array");
                 }
-                adminsPkh.push(pkh);
-            }
+              }
 
+            //   console.log("admins pkh ",adminsPkh);
+              
             const lenders: [string, [bigint, bigint]][] = [];
             for (const lenderData of maybeLendersData) {
                 if (lenderData instanceof Constr && lenderData.index === 0) {
                     const [pkh, tupleData] = lenderData.fields;
+
+                    console.log(`pkh ${pkh} \n tupleData ${tupleData}`);
+                    
                     if (typeof pkh === 'string' &&
                         tupleData instanceof Constr &&
                         tupleData.index === 0) {
@@ -468,7 +389,7 @@ function parseLenderDatum(data: Data) {
                     }
                 }
             }
-            console.log("adminsPkh ",adminsPkh);
+            // console.log("adminsPkh ",adminsPkh);
             console.log("lenders ",lenders);
 
 
@@ -492,13 +413,13 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
     try {
         const pkh = await getPubKeyHash(lucid);
         const userAddress = await lucid.wallet().address();
-        console.log("User Address:", userAddress);
-        console.log("User Pkh:", pkh);
+        // console.log("User Address:", userAddress);
+        // console.log("User Pkh:", pkh);
 
 
         // Get UTxOs at contract
         const contractUTxOs = await lucid.utxosAt(StackContractAddress);
-        console.log("Contract UTxOs:", contractUTxOs); // Debugging output
+        // console.log("Contract UTxOs:", contractUTxOs); // Debugging output
 
         if (contractUTxOs.length === 0) {
             // Initial deposit
@@ -509,7 +430,7 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
                 lenders: [[pkh, [depositAmount, 0n]]]
             };
 
-            console.log("Initial Datum ", initialDatum);
+            // console.log("Initial Datum ", initialDatum);
 
 
             const tx = await lucid.newTx()
@@ -530,13 +451,13 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
         // Existing deposit
         const contractUTxO = contractUTxOs[1];
 
-        console.log("contractUtxo ",contractUTxO);
+        // console.log("contractUtxo ",contractUTxO);
         
         if (!contractUTxO.datum) throw new Error("Missing datum");
-        console.log("contractUTxO datum:-> ", contractUTxO.datum);
+        // console.log("contractUTxO datum:-> ", contractUTxO.datum);
 
         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
-        console.log("Current Datum after parseLenderDatum :", currentDatum); // Debugging output
+        // console.log("Current Datum after parseLenderDatum :", currentDatum); // Debugging output
 
         // // Update lenders
         const updatedLenders = currentDatum?.lenders.map(([pubKey, [balance, rewardDebt]]) =>
@@ -544,14 +465,7 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
                 ? [pubKey, [balance + depositAmount, rewardDebt]]
                 : [pubKey, [balance, rewardDebt]]
         );
-        console.log("updatedLenders ", updatedLenders);
-    console.log("currentDatum.adminsPkh ",currentDatum.adminsPkh);
-    console.log("totalPT ", currentDatum.totalPT + depositAmount);
-
-    console.log(" totalReward",currentDatum.totalReward);
-
-    console.log("updatedLenders ",updatedLenders);
-
+   
 
         const newDatum: LenderDatum = {
             adminsPkh: currentDatum.adminsPkh,
@@ -559,8 +473,7 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
             totalReward: currentDatum?.totalReward,
             lenders: updatedLenders
         };
-        console.log("newDatum ", newDatum);
-console.log("stack contract address ",StackContractAddress);
+
 
         // Build transaction
         return lucid.newTx()
@@ -589,12 +502,13 @@ async function withdraw(
     try {
         // Get the wallet's public key hash
         const pkh = await getPubKeyHash(lucid);
+        console.log("user-wallets-pkh ",pkh);
 
         // Fetch existing UTxO at the contract
         const contractUTxOs = await lucid.utxosAt(StackContractAddress);
         const userAddress = await lucid.wallet().address();
-console.log("contract Address ",StackContractAddress);
-console.log("userAddress ",userAddress);
+        console.log("contract Address ",StackContractAddress);
+        console.log("userAddress ",userAddress);
 
 
         // Check if contract has any UTxOs
@@ -603,18 +517,24 @@ console.log("userAddress ",userAddress);
         }
 
         // Get the first contract UTxO (assuming single UTxO for simplicity)
-        const contractUTxO = contractUTxOs[0];
+        const contractUTxO = contractUTxOs[3];
+
+        console.log("contractUTXO ",contractUTxO);
+        // console.log("contractUtxo datum ",contractUTxO.datum);
+        
         if (!contractUTxO.datum) {
             throw new Error("Missing datum in contract UTxO");
         }
 
         // Parse the existing on-chain datum
         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
+        console.log("currentDatum ",currentDatum);
 
         // Find the user in the lenders list
         const userLenderIndex = currentDatum.lenders.findIndex(
             ([pubKey, _]) => pubKey === pkh
         );
+            console.log("userLenderIndex ",userLenderIndex);
 
         if (userLenderIndex === -1) {
             throw new Error("User is not a lender in this contract");
@@ -725,19 +645,38 @@ console.log("userAddress ",userAddress);
 async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
     try {
         const pkh = await getPubKeyHash(lucid);
+        console.log("pkh:--> ",pkh);
+        
         const userAddress = await lucid.wallet().address();
-        const contractUTxOs = await lucid.utxosAt(contractAddress);
+        // console.log("user address ",userAddress);
+        
+        const contractUTxOs = await lucid.utxosAt(StackContractAddress);
+
+        // console.log("stack contract utxos ",contractUTxOs);
+        
         if (contractUTxOs.length === 0) {
             throw new Error("No contract UTxOs found - nothing to redeem");
         }
-        const contractUTxO = contractUTxOs[0];
+        const contractUTxO = contractUTxOs[2];
+
+
+        console.log("contractUTxO ",contractUTxO);
+        
         if (!contractUTxO.datum) {
             throw new Error("Missing datum in contract UTxO");
         }
         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
+
+        console.log("currentDatum after parseLenderDatum ",currentDatum);
+        
+        console.log("currentDatum.lender ",currentDatum.lenders);
+        
         const userLenderIndex = currentDatum.lenders.findIndex(
             ([pubKey, _]) => pubKey === pkh
         );
+
+        console.log("userLenderIndex ",userLenderIndex);
+        
         if (userLenderIndex === -1) {
             throw new Error("User is not a lender in this contract");
         }
@@ -794,227 +733,7 @@ async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
     }
 }
 
-// async function FundPlastik(
-//     lucid: LucidEvolution,
-//     preId: string,
-//     roadmapId: string,
-//     soldPlasticCredit: bigint
-// ) {
-//     try {
-//         // Get the wallet's public key hash of Admin
-//         const adminPkh = await getPubKeyHash(lucid);
-//         const adminAddress = await lucid.wallet().address();
-//         console.log("Admin Pkh:", adminPkh);
-//         console.log("Admin Address:", adminAddress);
 
-//         // 2. Find matching UTXO
-//         const refiUtxos = await lucid.utxosAt(StackContractAddress);
-//         // console.log("contract UTxOs:", refiUtxos);
-
-//         // console.log("UTxOs at refi contract:", refiUtxos);
-
-//         const matchedUtxo = refiUtxos.find((utxo) => {
-//             // console.log("Checking UTXO:", utxo);
-//             // console.log("utxo.datum ", utxo.datum);
-
-//             if (!utxo.datum) return false;
-
-//             try {
-//                 const datum = Data.from(utxo.datum) as Constr<Data>;
-//                 // console.log("Parsed datum:", datum);
-
-//                 if (!(datum instanceof Constr)) return false;
-
-//                 // Safely extract fields
-//                 const utxoPreId = datum.fields[0];
-//                 const utxoRoadmapId = datum.fields[1];
-//                 // console.log("Extracted fields:", utxoPreId, utxoRoadmapId);
-
-//                 // Convert to text if they're strings/bytes
-//                 const preIdText = typeof utxoPreId === 'string' ? toText(utxoPreId) : '';
-//                 const roadmapIdText = typeof utxoRoadmapId === 'string' ? toText(utxoRoadmapId) : '';
-
-
-//                 // console.log("Parsed preId:", preIdText);
-//                 // console.log("Parsed roadmapId:", roadmapIdText);
-
-//                 return preIdText === preId && roadmapIdText === roadmapId;
-
-//             } catch (e) {
-//                 console.error("Error parsing datum:", e);
-//                 return false;
-//             }
-
-
-//             // return (
-
-//             //     console.log("Parsed preId:", toText(datum.fields[0] as string)),
-//             //     console.log("Parsed roadmapId:", toText(datum.fields[1] as string)),
-//             //     toText(datum.fields[0] as string) === preId &&
-//             //     toText(datum.fields[1] as string) === roadmapId
-//             // );
-//         });
-
-//         // console.log("Matched UTXO:", matchedUtxo);
-//         if (!matchedUtxo?.datum) {
-//             throw new Error(
-//                 `No matching roadmap found for preId: ${preId}, roadmapId: ${roadmapId}`
-//             );
-//         }
-//         // console.log("Matched UTXO datum:", Data.from(matchedUtxo.datum));
-
-//         const refiOldDatum = parseRoadmapDatum(Data.from(matchedUtxo.datum));
-//         // console.log("refiOldDatum ", refiOldDatum);
-
-//         const totalPlasticCredits = refiOldDatum.totalPlasticCredits;
-
-//         // console.log("Total Plastic Credits:", totalPlasticCredits);
-
-//         const newSoldCredits = refiOldDatum.soldPlasticCredits + soldPlasticCredit;
-//         // console.log("New Sold Plastic Credits:", newSoldCredits);
-
-//         // Calculate progress using integer math
-//         const progress = (newSoldCredits * 10000n) / totalPlasticCredits;
-//         // console.log("progress ", progress);
-
-//         const newSentTokens = (progress * refiOldDatum.totalPlasticTokens) / 10000n;
-//         const recoveredPlastic = (progress * refiOldDatum.totalPlastic) / 10000n
-//         fromText(refiOldDatum.roadmapId), // roadmapId
-//             fromText(refiOldDatum.roadmapName), // roadmapName
-//             fromText(refiOldDatum.roadmapDescription), // roadmapDescription
-//             BigInt(progress), // progress
-//             refiOldDatum.adminsPkh, // adminsPkh
-//             refiOldDatum.prePkh, // prePkh
-//             refiOldDatum.preSkh, // preSkh
-//             BigInt(refiOldDatum.totalPlasticCredits), // totalPlasticCredits
-//             BigInt(newSoldCredits), // soldPlasticCredits
-//             BigInt(refiOldDatum.totalPlasticTokens), // totalPlasticTokens
-//             BigInt(newSentTokens), // sentPlasticTokens
-//             BigInt(refiOldDatum.totalPlastic), // totalPlasticd8799f447072653148726f61646d61703152436c65616e436f617374204d697373696f6e5f5840466f6375736564206f6e2072656d6f76696e6720706c61737469632077617374652066726f6d20636f617374616c20726567696f6e7320616e6420737570706f581c7274696e67206c6f63616c2072656379636c696e6720756e6974732eff19012c9f581c421341eb0d9397b6a9685cba8825059d4392d6a6bf6ca21dcd1c9399ff581cb93e78824bcf5c34a62b2f573727b4bb8a1365ebd152bd6243ff8dc6581ca786470d2a2c8bc00ecaf662a64407364be25325f33d1cb9446b4bd718640319271019012c1864035818323032352d30362d30355430373a30313a35302e3935335aff
-
-//             console.log("Updated Datum:", updatedDatum);
-
-//         const refiRedeemer = Data.to(new Constr(0, [progress]));
-
-//         // console.log("Refi Redeemer:", refiRedeemer);
-
-//         const plastikToLock = (newSentTokens * 80n) / 100n;
-//         // console.log("Plastik to Lock:", plastikToLock);
-
-//         /////////////////// ---------- Lending Staking Reward Contract ---------- ///////////////////
-//         // Fetch existing UTxO at the stake reward contract
-//         const contractUTxOs = await lucid.utxosAt(contractAddress);
-//         console.log("Contract UTxOs Stacking/Lending:", contractUTxOs);
-
-//         // Check if contract has any UTxOs
-//         if (contractUTxOs.length === 0) {
-//             throw new Error("No contract UTxOs found - nothing to withdraw");
-//         }
-
-//         // Get the first contract UTxO (assuming single UTxO for simplicity)
-//         const contractUTxO = contractUTxOs[0];
-
-//         // console.log("Contract UTxO:", contractUTxO);
-
-//         if (!contractUTxO.datum) {
-//             throw new Error("Missing datum in contract UTxO");
-//         }
-
-//         // Parse the existing on-chain datum
-//         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
-//         // console.log("currentDatum ", currentDatum);
-
-//         // Check that only the on-chain adminPkh can call “AdminWithdraw”
-//         if (!currentDatum.adminsPkh.includes(adminPkh)) {
-//             throw new Error("Only the admin can withdraw funds");
-//         }
-
-//         // Check if contract has enough PLASTIK tokens to send to escrow if not admin will fund it
-//         const contractPtBalance = contractUTxO.assets[ptAssetUnit] || 0n;
-
-//         if (contractPtBalance < plastikToLock) {
-//             throw new Error("Contract has insufficient PLASTIK tokens");
-//         }
-
-//         // Build the redeemer for AdminWithdraw action
-//         const redeemer = buildLenderAction({
-//             type: "FundPlastikToEscrow",
-//             amount: plastikToLock,
-//         });
-
-//         // Distibute the USDM rewards among the lenders
-//         ////// --------------------------/////////////
-//         const rewardMicro = soldPlasticCredit * precisionFactor;
-
-//         const newTotalReward = currentDatum.totalReward + rewardMicro;
-
-//         // Update each lender’s rewardDebt proportionally
-//         const updatedLenders: [string, [bigint, bigint]][] =
-//             currentDatum.lenders.map(([pubKey, [balance, rewardDebt]]) => {
-//                 // Keep rewardDebt as:(balance * newTotalReward) / totalPT
-//                 const newRewardDebt = (balance * newTotalReward) / currentDatum.totalPT;
-//                 return [pubKey, [balance, newRewardDebt]];
-//             });
-
-//         // Calculate remaining assets in the contract after withdrawal
-//         const remainingAssets = { ...contractUTxO.assets };
-//         console.log("Remaining Assets before withdrawal:", remainingAssets);
-
-//         remainingAssets[ptAssetUnit] =
-//             (remainingAssets[ptAssetUnit] || 0n) - plastikToLock;
-//         // add the new total reward to the contract
-//         remainingAssets[usdmAssetUnit] = newTotalReward;
-
-//         // Now build the new datum (keeping adminPkh, totalPT, lenders unchanged):
-//         const newDatum: LenderDatum = {
-//             adminsPkh: currentDatum.adminsPkh,
-//             totalPT: currentDatum.totalPT,
-//             totalReward: newTotalReward,
-//             lenders: updatedLenders,
-//         };
-
-//         const refiAssets: Assets = {
-//             [ptAssetUnit]: (matchedUtxo.assets[ptAssetUnit] || 0n) + plastikToLock,
-//             ...(usdmAssetUnit in matchedUtxo.assets
-//                 ? { [usdmAssetUnit]: matchedUtxo.assets[usdmAssetUnit] || 0n }
-//                 : {}),
-//         };
-//         console.dir(buildLenderDatum(newDatum), { depth: null });
-
-//         // Build the transaction for Lender Contract
-//         const lenderTx = await lucid
-//             .newTx()
-//             .collectFrom([contractUTxO], Data.to(redeemer)) // Collect from Lender Contract
-//             .attach.Script(StackValidator)
-//             .pay.ToContract(
-//                 // Pay to Lender Contract
-//                 StackContractAddress,
-//                 { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
-//                 remainingAssets
-//             )
-//             .addSigner(adminAddress)
-//             .complete();
-
-//         // Build the transaction for Refi Contract
-//         const refiTx = await lucid
-//             .newTx()
-//             .collectFrom([matchedUtxo], Data.to(refiRedeemer)) // Collect from Refi Contract
-//             .attach.Script(StackValidator)
-//             .pay.ToContract(
-//                 // Pay to Refi Contract
-//                 StackContractAddress,
-//                 { kind: "inline", value: Data.to(updatedDatum) },
-//                 refiAssets
-//             )
-//             .addSigner(adminAddress)
-//             .complete();
-
-//         return { lenderTx, refiTx };
-//     } catch (error: any) {
-//         console.error("AdminWithdraw error:", error.message);
-//         throw error;
-//     }
-// }
 
 // async function FundUSDM(
 //   lucid: LucidEvolution,
@@ -1082,9 +801,13 @@ async function FundPlastik(
         // Get the wallet's public key hash of Admin
         const adminPkh = await getPubKeyHash(lucid);
         const adminAddress = await lucid.wallet().address();
+        console.log("adminPkh ",adminPkh);
+        console.log("adminAddress ",adminAddress);
 
-        // 2. Find matching UTXO
-        const utxos = await lucid.utxosAt(StackContractAddress);
+            // 2. Find matching UTXO
+        const utxos = await lucid.utxosAt(refiContractAddress);
+        console.log("refi contract utxos ",utxos);
+        
         const matchedUtxo = utxos.find((utxo) => {
             if (!utxo.datum) return false;
             const datum = Data.from(utxo.datum) as Constr<Data>;
@@ -1093,6 +816,9 @@ async function FundPlastik(
                 toText(datum.fields[1] as string) === roadmapId
             );
         });
+
+        console.log("matchedUtxos ",matchedUtxo.datum);
+        
         if (!matchedUtxo?.datum) {
             throw new Error(
                 `No matching roadmap found for preId: ${preId}, roadmapId: ${roadmapId}`
@@ -1101,7 +827,7 @@ async function FundPlastik(
         // console.log("Matched UTXO datum:", Data.from(matchedUtxo.datum));
 
         const refiOldDatum = parseRoadmapDatum(Data.from(matchedUtxo.datum));
-        // console.log(refiOldDatum);
+        console.log(refiOldDatum);
 
         const totalPlasticCredits = refiOldDatum.totalPlasticCredits;
         const newSoldCredits = refiOldDatum.soldPlasticCredits + soldPlasticCredit;
@@ -1202,6 +928,7 @@ async function FundPlastik(
             totalReward: newTotalReward,
             lenders: updatedLenders,
         };
+            console.log("newDatum ",newDatum);
 
         const refiAssets: Assets = {
             [ptAssetUnit]: (matchedUtxo.assets[ptAssetUnit] || 0n) + plastikToLock,
@@ -1241,10 +968,12 @@ async function FundPlastik(
 }
 const getScriptUtxos = async (lucid: LucidEvolution, address: string) => {
     const utxos = await lucid.utxosAt(address);
-    console.log("Script UTxOs:", utxos);
+    // console.log("Script UTxOs:", utxos);
     utxos.forEach((utxo) => {
         if (!utxo.datum) return;
         const parsed = Data.from(utxo.datum) as Constr<unknown>;
+        // console.log("parsed ",parsed);
+        
         console.dir(parsed, { depth: null });
     });
 };
@@ -1253,28 +982,28 @@ const lucid = await initLucid();
 
 // const seed = "nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute"
 // const adminSeed = lucid.selectWallet.fromSeed("nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute");
-lucid.selectWallet.fromSeed("nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute");
+// lucid.selectWallet.fromSeed("nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute");
 
-// const adminSeed = process.env.ADMIN_SEED
-// console.log(adminSeed);
+const adminSeed = process.env.RAYAN_CODE!
+console.log(adminSeed);
 
 
-// lucid.selectWallet.fromSeed(adminSeed);
+lucid.selectWallet.fromSeed(adminSeed);
 const wallet = lucid.wallet().address();
 
 console.log("Wallet Address ", wallet);
 
 
 // 1.Example usage of deposit function
-const tx = await deposit(lucid, 1n);
-console.log("msg\n\n\n", tx);
+// const tx = await deposit(lucid, 1n);
+// console.log("msg\n\n\n", tx);
 
-if (!tx) {
-    throw new Error("Failed to build deposit transaction.");
-}
-const signed = await tx.sign.withWallet().complete();
-const txHash = await signed.submit();
-console.log("Deposit tx submitted:", txHash);
+// if (!tx) {
+//     throw new Error("Failed to build deposit transaction.");
+// }
+// const signed = await tx.sign.withWallet().complete();
+// const txHash = await signed.submit();
+// console.log("Deposit tx submitted:", txHash);
 
 // 2.Example usage of withdraw function
 // const withdrawTx = await withdraw(lucid, 100n);
@@ -1297,8 +1026,8 @@ console.log("Deposit tx submitted:", txHash);
 // 4.Example usage of Initialize Rodmap function
 // const initializeRoadmapTx = await initializeRoadmap(
 //     lucid,
-//     "pre1",
-//     "roadmap1",
+//     "pre2",
+//     "roadmap2",
 //     "CleanCoast Mission",
 //     "Focused on removing plastic waste from coastal regions and supporting local recycling units.",
 //     "b93e78824bcf5c34a62b2f573727b4bb8a1365ebd152bd6243ff8dc6",
@@ -1317,7 +1046,7 @@ console.log("Deposit tx submitted:", txHash);
 // console.log("initializeRoadmap tx submitted:", initializeRoadmapTxHash);
 
 // 5.Example usage of Fund Plastik function
-// const tx = await FundPlastik(lucid, "pre1", "roadmap1", 1n);
+// const tx = await FundPlastik(lucid, "pre2", "roadmap2", 2n);
 // if (!tx) {
 //     throw new Error("Failed to build deposit transaction.");
 // }
@@ -1326,5 +1055,9 @@ console.log("Deposit tx submitted:", txHash);
 // console.log("FundPlastik tx submitted:", txHash);
 
 // 6.Example usage of getScriptUtxos function
-// getScriptUtxos(lucid, refiContractAddress);
 // getScriptUtxos(lucid, StackContractAddress);
+
+
+
+
+// console.log(process.env.RAYAN_CODE);

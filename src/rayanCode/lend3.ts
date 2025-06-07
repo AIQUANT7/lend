@@ -479,6 +479,7 @@ async function withdraw(
   try {
     // Get the wallet's public key hash
     const pkh = await getPubKeyHash(lucid);
+console.log("wallet's pkh ",pkh);
 
     // Fetch existing UTxO at the contract
     const contractUTxOs = await lucid.utxosAt(StackContractAddress);
