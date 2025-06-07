@@ -922,13 +922,13 @@ lucid.selectWallet.fromSeed(
 );
 
 // Example usage of deposit function
-// const tx = await deposit(lucid, 1n);
-// if (!tx) {
-//   throw new Error("Failed to build deposit transaction.");
-// }
-// const signed = await tx.sign.withWallet().complete();
-// const txHash = await signed.submit();
-// console.log("Deposit tx submitted:", txHash);
+const tx = await deposit(lucid, 1n);
+if (!tx) {
+  throw new Error("Failed to build deposit transaction.");
+}
+const signed = await tx.sign.withWallet().complete();
+const txHash = await signed.submit();
+console.log("Deposit tx submitted:", txHash);
 
 // Example usage of withdraw function
 // const withdrawTx = await withdraw(lucid, 100n);

@@ -31,7 +31,7 @@ const initLucid = async () => {
 // console.log("Initializing Lucid...", initLucid)
 const StackValidator: Validator = {
     type: "PlutusV2",
-    script: process.env.STACK_CBOR!,
+    script: process.env.CBOR!,
 };
 // console.log("cbor1 ", process.env.CBOR);
 // console.log("cbor2 ", process.env.CBOR2);
@@ -307,6 +307,15 @@ function buildLenderDatum(datum: LenderDatum): Constr<Data> {
 
     // Now emit a Constr with index 0 (since Haskell’s single data type LenderDatum gets 0 index)
     // and fields: [adminPkh, totalPT, totalReward, lendersData].
+
+    console.log("datum.adminsPkh ",datum.adminsPkh);
+    console.log("datum.totalPT ",datum.totalPT);
+    console.log("datum.totalReward ",datum.totalReward);
+    console.log("lendersData ",lendersData);
+    
+    
+    
+    
     return new Constr(0, [
         datum.adminsPkh,
         datum.totalPT,
@@ -415,9 +424,15 @@ function buildLenderDatum(datum: LenderDatum): Constr<Data> {
 // }
 
 function parseLenderDatum(data: Data) {
+    console.log("data ",data);
     if (data instanceof Constr && data.index === 0) {
+
+        
         const [maybeAdminsPkh, maybeTotalPT, maybeTotalReward, maybeLendersData] = data.fields;
 
+
+        console.log(`maybeAdminsPkh ${maybeAdminsPkh}\nmaybeTotalPT ${maybeTotalPT}\nmaybeTotalReward ${maybeTotalReward}\nmaybeLendersData ${maybeLendersData}`);
+        
         //     // Validate types
         if (
 
@@ -453,6 +468,9 @@ function parseLenderDatum(data: Data) {
                     }
                 }
             }
+            console.log("adminsPkh ",adminsPkh);
+            console.log("lenders ",lenders);
+
 
             return {
                 adminsPkh,
@@ -474,13 +492,13 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
     try {
         const pkh = await getPubKeyHash(lucid);
         const userAddress = await lucid.wallet().address();
-        // console.log("User Address:", userAddress);
-        // console.log("User Pkh:", pkh);
+        console.log("User Address:", userAddress);
+        console.log("User Pkh:", pkh);
 
 
         // Get UTxOs at contract
         const contractUTxOs = await lucid.utxosAt(StackContractAddress);
-        // console.log("Contract UTxOs:", contractUTxOs); // Debugging output
+        console.log("Contract UTxOs:", contractUTxOs); // Debugging output
 
         if (contractUTxOs.length === 0) {
             // Initial deposit
@@ -491,7 +509,7 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
                 lenders: [[pkh, [depositAmount, 0n]]]
             };
 
-            // console.log("Initial Datum ", initialDatum);
+            console.log("Initial Datum ", initialDatum);
 
 
             const tx = await lucid.newTx()
@@ -502,14 +520,18 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
                 )
                 .complete();
 
-            console.log("Initial deposit transaction built successfully", tx);
+            // console.log("Initial deposit transaction built successfully", tx);
 
             return tx;
         }
+            // console.log("tx ",tx);
 
 
         // Existing deposit
-        const contractUTxO = contractUTxOs[0];
+        const contractUTxO = contractUTxOs[1];
+
+        console.log("contractUtxo ",contractUTxO);
+        
         if (!contractUTxO.datum) throw new Error("Missing datum");
         console.log("contractUTxO datum:-> ", contractUTxO.datum);
 
@@ -523,6 +545,13 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
                 : [pubKey, [balance, rewardDebt]]
         );
         console.log("updatedLenders ", updatedLenders);
+    console.log("currentDatum.adminsPkh ",currentDatum.adminsPkh);
+    console.log("totalPT ", currentDatum.totalPT + depositAmount);
+
+    console.log(" totalReward",currentDatum.totalReward);
+
+    console.log("updatedLenders ",updatedLenders);
+
 
         const newDatum: LenderDatum = {
             adminsPkh: currentDatum.adminsPkh,
@@ -531,6 +560,7 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
             lenders: updatedLenders
         };
         console.log("newDatum ", newDatum);
+console.log("stack contract address ",StackContractAddress);
 
         // Build transaction
         return lucid.newTx()
@@ -561,8 +591,11 @@ async function withdraw(
         const pkh = await getPubKeyHash(lucid);
 
         // Fetch existing UTxO at the contract
-        const contractUTxOs = await lucid.utxosAt(contractAddress);
+        const contractUTxOs = await lucid.utxosAt(StackContractAddress);
         const userAddress = await lucid.wallet().address();
+console.log("contract Address ",StackContractAddress);
+console.log("userAddress ",userAddress);
+
 
         // Check if contract has any UTxOs
         if (contractUTxOs.length === 0) {
@@ -1222,14 +1255,14 @@ const lucid = await initLucid();
 // const adminSeed = lucid.selectWallet.fromSeed("nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute");
 lucid.selectWallet.fromSeed("nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute");
 
-const adminSeed = process.env.ADMIN_SEED
-console.log(adminSeed);
+// const adminSeed = process.env.ADMIN_SEED
+// console.log(adminSeed);
 
 
 // lucid.selectWallet.fromSeed(adminSeed);
 const wallet = lucid.wallet().address();
 
-// console.log("Wallet Address ", wallet);
+console.log("Wallet Address ", wallet);
 
 
 // 1.Example usage of deposit function
@@ -1294,4 +1327,4 @@ console.log("Deposit tx submitted:", txHash);
 
 // 6.Example usage of getScriptUtxos function
 // getScriptUtxos(lucid, refiContractAddress);
-getScriptUtxos(lucid, StackContractAddress);
+// getScriptUtxos(lucid, StackContractAddress);
