@@ -1,101 +1,31 @@
-import {
-    Lucid,
-    Blockfrost,
-    Data,
-    Constr,
-    Assets,
-    fromText,
-    toText,
-    Validator,
-    UTxO,
-    validatorToAddress,
-    getAddressDetails,
-    LucidEvolution,
-} from "@lucid-evolution/lucid";
+import { Lucid, Blockfrost, Data, Constr, fromText, toText, validatorToAddress, getAddressDetails, } from "@lucid-evolution/lucid";
 import dotenv from "dotenv";
-
 dotenv.config();
-
 const initLucid = async () => {
-    const lucid = await Lucid(
-        new Blockfrost(process.env.API_URL!, process.env.API_KEY!),
-        "Preprod"
-    );
-
+    const lucid = await Lucid(new Blockfrost(process.env.API_URL, process.env.API_KEY), "Preprod");
     // console.log(lucid);
-
     return lucid;
 };
-
-
 // console.log("Initializing Lucid...", initLucid)
-const StackValidator: Validator = {
+const StackValidator = {
     type: "PlutusV2",
-    script: process.env.CBOR!,
+    script: process.env.CBOR,
 };
 // console.log("cbor1 ", process.env.CBOR);
 // console.log("cbor2 ", process.env.CBOR2);
-
-const RefiValidator: Validator = {
+const RefiValidator = {
     type: "PlutusV2",
-    script: process.env.CBOR2!,
+    script: process.env.CBOR2,
 };
-
-
-
-const StackContractAddress = await initLucid().then((lucid) =>
-    validatorToAddress("Preprod", StackValidator)
-);
+const StackContractAddress = await initLucid().then((lucid) => validatorToAddress("Preprod", StackValidator));
 // console.log("Stack Contract Address:", StackContractAddress);
-const refiContractAddress = await initLucid().then((lucid) =>
-    validatorToAddress("Preprod", RefiValidator)
-);
-// console.log("Refi Contract Address:", refiContractAddress);
-
-
-
-// Roadmap Datum Interface
-export interface RoadmapDatum {
-    preId: string;
-    roadmapId: string;
-    roadmapName: string;
-    roadmapDescription: string;
-    progress: bigint;
-    adminsPkh: string[]; // Array of admin PKHs
-    prePkh: string;
-    preSkh: string;
-    totalPlasticCredits: bigint;
-    soldPlasticCredits: bigint;
-    totalPlasticTokens: bigint;
-    sentPlasticTokens: bigint;
-    totalPlastic: bigint;
-    recoverPlastic: bigint;
-    createdAt: string;
-}
+const refiContractAddress = await initLucid().then((lucid) => validatorToAddress("Preprod", RefiValidator));
 // Parses Data → JS RoadmapDatum, expecting 15 fields in the Constr
-export function parseRoadmapDatum(data: Data) {
+export function parseRoadmapDatum(data) {
     if (data instanceof Constr && data.index === 0) {
-        const [
-            maybePreId,
-            maybeRoadmapId,
-            maybeRoadmapName,
-            maybeRoadmapDescription,
-            maybeProgress,
-            maybeAdminsPkh,
-            maybePrePkh,
-            maybePreSkh,
-            maybeTotalPlasticCredits,
-            maybeSoldPlasticCredits,
-            maybeTotalPlasticTokens,
-            maybeSentPlasticTokens,
-            maybeTotalPlastic,
-            maybeRecoverPlastic,
-            maybeCreatedAt,
-        ] = data.fields;
-
+        const [maybePreId, maybeRoadmapId, maybeRoadmapName, maybeRoadmapDescription, maybeProgress, maybeAdminsPkh, maybePrePkh, maybePreSkh, maybeTotalPlasticCredits, maybeSoldPlasticCredits, maybeTotalPlasticTokens, maybeSentPlasticTokens, maybeTotalPlastic, maybeRecoverPlastic, maybeCreatedAt,] = data.fields;
         // Validate basic types
-        if (
-            typeof maybePreId === "string" &&
+        if (typeof maybePreId === "string" &&
             typeof maybeRoadmapId === "string" &&
             typeof maybeRoadmapName === "string" &&
             typeof maybeRoadmapDescription === "string" &&
@@ -109,18 +39,17 @@ export function parseRoadmapDatum(data: Data) {
             typeof maybeSentPlasticTokens === "bigint" &&
             typeof maybeTotalPlastic === "bigint" &&
             typeof maybeRecoverPlastic === "bigint" &&
-            typeof maybeCreatedAt === "string"
-        ) {
+            typeof maybeCreatedAt === "string") {
             // Parse admin PKHs array
-            const adminsPkh: string[] = [];
+            const adminsPkh = [];
             for (const adminPkh of maybeAdminsPkh) {
                 if (typeof adminPkh === "string") {
                     adminsPkh.push(adminPkh);
-                } else {
+                }
+                else {
                     throw new Error("Invalid admin PKH format in array");
                 }
             }
-
             return {
                 preId: toText(maybePreId),
                 roadmapId: toText(maybeRoadmapId),
@@ -138,7 +67,7 @@ export function parseRoadmapDatum(data: Data) {
                 recoverPlastic: maybeRecoverPlastic,
                 createdAt: toText(maybeCreatedAt),
             };
-            {/*
+            { /*
             fields: [
                 '70726534',
                 '726f61646d617034',
@@ -156,57 +85,37 @@ export function parseRoadmapDatum(data: Data) {
                 0n,
                 '323032352d30362d31325430363a35303a31382e3636355a'
             ]
-        */}
+        */
+            }
         }
     }
     throw new Error("Invalid roadmap datum format");
 }
-
 // Updated Initialize Function with Admin PKH Array
-export const initializeRoadmap = async (
-    lucid: LucidEvolution,
-    preId: string,
-    roadmapId: string,
-    roadmapName: string,
-    roadmapDescription: string,
-    prePkh: string,
-    preSkh: string,
-    totalPlasticCredits: bigint,
-    totalPlasticTokens: bigint,
-    totalPlastic: bigint
-) => {
+export const initializeRoadmap = async (lucid, preId, roadmapId, roadmapName, roadmapDescription, prePkh, preSkh, totalPlasticCredits, totalPlasticTokens, totalPlastic) => {
     try {
         const adminPkh = await getPubKeyHash(lucid);
         console.log("Admin Pkh:", adminPkh);
-
         // Check if roadmap already exists
         const utxos = await lucid.utxosAt(refiContractAddress);
         // console.log("UTxOs at refi contract:", refiContractAddress); // Log UTxOs for debugging
         console.log("UTxOs at refi contract:", utxos);
-
         const matchedUtxo = utxos.find((utxo) => {
-            if (!utxo.datum) return false;
+            if (!utxo.datum)
+                return false;
             try {
-                const datum = Data.from(utxo.datum) as Constr<Data>;
-                return (
-                    toText(datum.fields[0] as string) === preId &&
-                    toText(datum.fields[1] as string) === roadmapId
-                );
-            } catch {
+                const datum = Data.from(utxo.datum);
+                return (toText(datum.fields[0]) === preId &&
+                    toText(datum.fields[1]) === roadmapId);
+            }
+            catch {
                 return false;
             }
         });
-
-
         console.log("Matched UTXO:", matchedUtxo);
-
-
         if (matchedUtxo) {
-            throw new Error(
-                `Roadmap with preId ${preId} and roadmapId ${roadmapId} already exists`
-            );
+            throw new Error(`Roadmap with preId ${preId} and roadmapId ${roadmapId} already exists`);
         }
-
         // Create datum with proper structure
         const datumToLock = new Constr(0, [
             fromText(preId),
@@ -225,64 +134,46 @@ export const initializeRoadmap = async (
             BigInt(0), // recoverPlastic
             fromText(new Date().toISOString()),
         ]);
-
-        const AMOUNT = 3_000_000n;
+        const AMOUNT = 3000000n;
         const tx = await lucid
             .newTx()
             .pay.ToContract(StackContractAddress, {
-                kind: "inline",
-                value: Data.to(datumToLock),
-            })
+            kind: "inline",
+            value: Data.to(datumToLock),
+        })
             .complete();
-
         return tx;
-    } catch (err) {
+    }
+    catch (err) {
         console.error(err);
-        throw new Error(
-            `Failed to initialize roadmap: ${err instanceof Error ? err.message : String(err)
-            }`
-        );
+        throw new Error(`Failed to initialize roadmap: ${err instanceof Error ? err.message : String(err)}`);
     }
 };
 // initializeRoadmap
 //
 // 2) Token‐related constants (unchanged)
 //
-
 const ptPolicyId = "d4fece6b39f7cd78a3f036b2ae6508c13524b863922da80f68dd9ab7";
 const ptTokenName = fromText("PLASTIK");
 const ptAssetUnit = ptPolicyId + ptTokenName;
-
 const usdmPolicyId = "d4fece6b39f7cd78a3f036b2ae6508c13524b863922da80f68dd9ab7";
 const usdmTokenName = fromText("USDM");
 const usdmAssetUnit = usdmPolicyId + usdmTokenName;
-
-const precisionFactor = 1_000_000n;
-
+const precisionFactor = 1000000n;
 //
 // 3) Helper: get the current wallet’s PubKeyHash
 //
-
-export const getPubKeyHash = async (lucid: LucidEvolution): Promise<string> => {
+export const getPubKeyHash = async (lucid) => {
     const address = await lucid.wallet().address();
     // console.log("ADdress ", address);
-
     const { paymentCredential } = getAddressDetails(address);
-
     // console.log("wallet-address ", address);
     console.log("paymentCredentials ", paymentCredential.hash);
-
     return paymentCredential?.hash || "";
 };
-
-
 // 4) Updated “LenderAction” builder: now includes AdminWithdraw and AdminReturn
 //
-
-export const buildLenderAction = (action: {
-    type: "Deposit" | "Withdraw" | "Redeem" | "FundPlastikToEscrow" | "FundUSDM";
-    amount?: bigint;
-}): Constr<Data> => {
+export const buildLenderAction = (action) => {
     switch (action.type) {
         case "Deposit":
             // Haskell: “Deposit” is the first constructor → index 0, no fields
@@ -312,41 +203,23 @@ export const buildLenderAction = (action: {
             throw new Error("Unknown action type");
     }
 };
-
-type LenderDatum = {
-    adminsPkh: string[]; // first field
-    totalPT: bigint; // second field
-    totalReward: bigint; // third field
-    lenders: [string, [bigint, bigint]][]; // fourth field
-};
-
 // Builds a Constr<Data> matching: LenderDatum adminPkh totalPT totalReward lenders
-export function buildLenderDatum(datum: LenderDatum): Constr<Data> {
+export function buildLenderDatum(datum) {
     // Convert each lender entry ([pkh, [balance, rewardDebt]]) → Constr(0, [pkh, Constr(0, [balance, rewardDebt])])
-    const lendersData = datum.lenders.map(
-        ([pkh, [balance, rewardDebt]]) =>
-            new Constr(0, [pkh, new Constr(0, [balance, rewardDebt])])
-    );
-
+    const lendersData = datum.lenders.map(([pkh, [balance, rewardDebt]]) => new Constr(0, [pkh, new Constr(0, [balance, rewardDebt])]));
     console.log("lendersData:-> ", lendersData);
-
     // Now emit a Constr with index 0 (since Haskell’s single data type LenderDatum gets 0 index)
     // and fields: [adminPkh, totalPT, totalReward, lendersData].
-
     console.log("datum.adminsPkh ", datum.adminsPkh);
     console.log("datum.totalPT ", datum.totalPT);
     console.log("datum.totalReward ", datum.totalReward);
     console.log("lendersData ", lendersData);
-
-
     console.log("new constr ", new Constr(0, [
         datum.adminsPkh,
         datum.totalPT,
         datum.totalReward,
         lendersData,
-    ]))
-
-
+    ]));
     return new Constr(0, [
         datum.adminsPkh,
         datum.totalPT,
@@ -354,58 +227,37 @@ export function buildLenderDatum(datum: LenderDatum): Constr<Data> {
         lendersData,
     ]);
 }
-
 // Parses Data → JS LenderDatum, expecting 4 fields in the Constr
-
-export function parseLenderDatum(data: Data) {
+export function parseLenderDatum(data) {
     // console.log("data ",data);
     if (data instanceof Constr && data.index === 0) {
-
-
         const [maybeAdminsPkh, maybeTotalPT, maybeTotalReward, maybeLendersData] = data.fields;
-
-
         // console.log(`maybeAdminsPkh ${maybeAdminsPkh}\nmaybeTotalPT ${maybeTotalPT}\nmaybeTotalReward ${maybeTotalReward}\nmaybeLendersData ${maybeLendersData}`);
-
         //     // Validate types
-        if (
-
-            true
-
-
-
-        ) {
-
-
-
-            const adminsPkh: string[] = [];
+        if (true) {
+            const adminsPkh = [];
             // for (const pkh of maybeAdminsPkh) {
             //     console.log("public key hash ", pkh);
-
             //     if (typeof pkh === 'string') {
             //         throw new Error("Admin PKH must be string");
             //     }
             //     // console.log("admins pkh ",);
-
             //     adminsPkh.push(pkh);
             // }
             for (const pkh of maybeAdminsPkh) {
                 if (typeof pkh === "string") {
                     adminsPkh.push(pkh);
-                } else {
+                }
+                else {
                     throw new Error("Invalid admin PKH format in array");
                 }
             }
-
             //   console.log("admins pkh ",adminsPkh);
-
-            const lenders: [string, [bigint, bigint]][] = [];
+            const lenders = [];
             for (const lenderData of maybeLendersData) {
                 if (lenderData instanceof Constr && lenderData.index === 0) {
                     const [pkh, tupleData] = lenderData.fields;
-
                     console.log(`pkh ${pkh} \n tupleData ${tupleData}`);
-
                     if (typeof pkh === 'string' &&
                         tupleData instanceof Constr &&
                         tupleData.index === 0) {
@@ -418,8 +270,6 @@ export function parseLenderDatum(data: Data) {
             }
             // console.log("adminsPkh ",adminsPkh);
             console.log("lenders ", lenders);
-
-
             return {
                 adminsPkh,
                 totalPT: maybeTotalPT,
@@ -427,182 +277,120 @@ export function parseLenderDatum(data: Data) {
                 lenders
             };
         }
-
-    } throw new Error("Invalid datum format");
-
-
-
+    }
+    throw new Error("Invalid datum format");
 }
-
-
-
-export async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
+export async function deposit(lucid, depositAmount) {
     try {
         const pkh = await getPubKeyHash(lucid);
         // console.log("pkh ", pkh);
-
         const userAddress = await lucid.wallet().address();
         console.log("User Address:", userAddress);
         console.log("User Pkh:", pkh);
-
-
         // Get UTxOs at contract
         const contractUTxOs = await lucid.utxosAt(StackContractAddress);
         console.log("Contract UTxOs:", contractUTxOs); // Debugging output
-
         if (contractUTxOs.length === 0) {
             // Initial deposit
-            const initialDatum: LenderDatum = {
+            const initialDatum = {
                 adminsPkh: [pkh],
                 totalPT: depositAmount,
                 totalReward: 0n,
                 lenders: [[pkh, [depositAmount, 0n]]]
             };
-
             // console.log("Initial Datum ", initialDatum);
             // console.log(buildLenderDatum(initialDatum));
-
-
             const tx = await lucid.newTx()
-                .pay.ToContract(
-                    StackContractAddress,
-                    { kind: "inline", value: Data.to(buildLenderDatum(initialDatum)) },
-                    { [ptAssetUnit]: depositAmount }
-                )
+                .pay.ToContract(StackContractAddress, { kind: "inline", value: Data.to(buildLenderDatum(initialDatum)) }, { [ptAssetUnit]: depositAmount })
                 .complete();
-
             // console.log("Initial deposit transaction built successfully", tx);
-
             return tx;
         }
         // console.log("tx ", tx);
-
-
         // Existing deposit
         const contractUTxO = contractUTxOs[6];
-
         console.log("contractUTxO:-> ", contractUTxO);
-
-        if (!contractUTxO.datum) throw new Error("Missing datum");
+        if (!contractUTxO.datum)
+            throw new Error("Missing datum");
         // console.log("contractUTxO datum:-> ", contractUTxO.datum);
-
         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
         console.log("Current Datum after parseLenderDatum :", currentDatum); // Debugging output
-
         // // Update lenders
-        const updatedLenders = currentDatum?.lenders.map(([pubKey, [balance, rewardDebt]]) =>
-            pubKey === pkh
-                ? [pubKey, [balance + depositAmount, rewardDebt]]
-                : [pubKey, [balance, rewardDebt]]
-        );
-
+        const updatedLenders = currentDatum?.lenders.map(([pubKey, [balance, rewardDebt]]) => pubKey === pkh
+            ? [pubKey, [balance + depositAmount, rewardDebt]]
+            : [pubKey, [balance, rewardDebt]]);
         console.log("Updated Lenders: ", updatedLenders); // Debugging output
-
-        const newDatum: LenderDatum = {
+        const newDatum = {
             adminsPkh: currentDatum.adminsPkh,
             totalPT: currentDatum.totalPT + depositAmount,
             totalReward: currentDatum?.totalReward,
             lenders: updatedLenders
         };
         console.log("newDatum after update: ", newDatum); // Debugging output
-
-
         // Build transaction
         return lucid.newTx()
             .collectFrom([contractUTxO], Data.to(buildLenderAction({ type: "Deposit" })))
-            .pay.ToContract(
-                StackContractAddress,
-                { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
-                {
-                    ...contractUTxO.assets,
-                    [ptAssetUnit]: (contractUTxO.assets[ptAssetUnit] || 0n) + depositAmount
-                }
-            )
+            .pay.ToContract(StackContractAddress, { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) }, {
+            ...contractUTxO.assets,
+            [ptAssetUnit]: (contractUTxO.assets[ptAssetUnit] || 0n) + depositAmount
+        })
             .attach.SpendingValidator(StackValidator)
             .addSigner(userAddress)
             .complete();
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Deposit error:", error);
         throw error;
     }
 }
-export async function withdraw(
-    lucid: LucidEvolution,
-    withdrawAmount: bigint
-): Promise<unknown> {
+export async function withdraw(lucid, withdrawAmount) {
     try {
         // Get the wallet's public key hash
         const pkh = await getPubKeyHash(lucid);
         console.log("user-wallets-pkh ", pkh);
-
         // Fetch existing UTxO at the contract
         const contractUTxOs = await lucid.utxosAt(StackContractAddress);
         console.log("contractUTXOS ", contractUTxOs);
-
-
         const userAddress = await lucid.wallet().address();
         // console.log("contract Address ", StackContractAddress);
         console.log("userAddress ", userAddress);
-
-
         // Check if contract has any UTxOs
         if (contractUTxOs.length === 0) {
             throw new Error("No contract UTxOs found - nothing to withdraw");
         }
-
         // Get the first contract UTxO (assuming single UTxO for simplicity)
         const contractUTxO = contractUTxOs[6];
-
         console.log("contractUTXO[3]", contractUTxO);
         // console.log("contractUtxo datum ",contractUTxO.datum);
-
         if (!contractUTxO.datum) {
             throw new Error("Missing datum in contract UTxO");
         }
-
         // Parse the existing on-chain datum
         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
         console.log("currentDatum ", currentDatum);
-
         // Find the user in the lenders list
-        const userLenderIndex = currentDatum.lenders.findIndex(
-            ([pubKey, _]) => pubKey === pkh
-        );
+        const userLenderIndex = currentDatum.lenders.findIndex(([pubKey, _]) => pubKey === pkh);
         console.log("userLenderIndex ", userLenderIndex);
-
         if (userLenderIndex === -1) {
             throw new Error("User is not a lender in this contract");
         }
-
-        const [_, [currentBalance, currentRewardDebt]] =
-            currentDatum.lenders[userLenderIndex];
-
+        const [_, [currentBalance, currentRewardDebt]] = currentDatum.lenders[userLenderIndex];
         // Check if user has sufficient balance
         if (currentBalance < withdrawAmount) {
-            throw new Error(
-                `Insufficient balance. Available: ${currentBalance}, Requested: ${withdrawAmount}`
-            );
+            throw new Error(`Insufficient balance. Available: ${currentBalance}, Requested: ${withdrawAmount}`);
         }
-
         // Build updated lenders array
-        const updatedLenders: [string, [bigint, bigint]][] = currentDatum.lenders
-            .map(
-                (
-                    [pubKey, [balance, rewardDebt]],
-                    index
-                ): [string, [bigint, bigint]] => {
-                    if (index === userLenderIndex) {
-                        const newBalance = balance - withdrawAmount;
-                        // Recalculate reward debt for new balance
-                        const newRewardDebt = 0n;
-                        return [pubKey, [newBalance, newRewardDebt]];
-                    }
-                    return [pubKey, [balance, rewardDebt]];
-                }
-            )
+        const updatedLenders = currentDatum.lenders
+            .map(([pubKey, [balance, rewardDebt]], index) => {
+            if (index === userLenderIndex) {
+                const newBalance = balance - withdrawAmount;
+                // Recalculate reward debt for new balance
+                const newRewardDebt = 0n;
+                return [pubKey, [newBalance, newRewardDebt]];
+            }
+            return [pubKey, [balance, rewardDebt]];
+        })
             .filter(([_, [balance, __]]) => balance > 0n); // Remove lenders with 0 balance
-
         let pendingReward = 0n; // Initialize pending reward
         // If user id withdrawing the full stake then we can also pay any pending rewards
         if (currentBalance === withdrawAmount) {
@@ -611,131 +399,96 @@ export async function withdraw(
                 currentDatum.lenders.find((lender) => lender[0] === pkh)?.[1][1] || 0n;
         }
         // Build the new datum
-        const newDatum: LenderDatum = {
+        const newDatum = {
             adminsPkh: currentDatum.adminsPkh,
             totalPT: currentDatum.totalPT - withdrawAmount,
             totalReward: currentDatum.totalReward - pendingReward,
             lenders: updatedLenders,
         };
-
         // Check if contract has enough PLASTIK tokens to withdraw
         const contractPtBalance = contractUTxO.assets[ptAssetUnit] || 0n;
         if (contractPtBalance < withdrawAmount) {
             throw new Error("Contract has insufficient PLASTIK tokens");
         }
-
         // Build the redeemer for Withdraw action
         const redeemer = buildLenderAction({
             type: "Withdraw",
             amount: withdrawAmount,
         });
-
         // Calculate remaining assets in the contract after withdrawal
         const remainingAssets = { ...contractUTxO.assets };
         remainingAssets[ptAssetUnit] = contractPtBalance - withdrawAmount;
-
         // Build the transaction
         const tx = lucid
             .newTx()
             .collectFrom([contractUTxO], Data.to(redeemer))
             .attach.Script(StackValidator)
             .addSigner(userAddress);
-
         // If there are still lenders or remaining PT, pay back to contract
         if (newDatum.totalPT > 0n && newDatum.lenders.length > 0) {
-            tx.pay.ToContract(
-                StackContractAddress,
-                { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
-                remainingAssets
-            );
+            tx.pay.ToContract(StackContractAddress, { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) }, remainingAssets);
         }
-
         // Pay withdrawn PLASTIK tokens to user
         tx.pay.ToAddress(userAddress, {
             [ptAssetUnit]: withdrawAmount,
         });
-
         // Pay any pending USDM rewards to user (if any)
         if (pendingReward > 0n) {
             const usdmAssetUnit = usdmPolicyId + usdmTokenName;
             const contractUsdmBalance = contractUTxO.assets[usdmAssetUnit] || 0n;
-
             if (contractUsdmBalance >= pendingReward) {
                 tx.pay.ToAddress(userAddress, {
                     [usdmAssetUnit]: pendingReward,
                 });
-
                 // Subtract rewards from remaining contract assets
                 remainingAssets[usdmAssetUnit] = contractUsdmBalance - pendingReward;
             }
         }
-
         return tx.complete();
-    } catch (error: any) {
+    }
+    catch (error) {
         console.error("Withdraw error:", error.message);
         throw error;
     }
 }
-
-export async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
+export async function redeemReward(lucid) {
     try {
         const pkh = await getPubKeyHash(lucid);
         console.log("pkh:--> ", pkh);
-
         const userAddress = await lucid.wallet().address();
         // console.log("user address ",userAddress);
-
         const contractUTxOs = await lucid.utxosAt(StackContractAddress);
-
         // console.log("stack contract utxos ",contractUTxOs);
-
         if (contractUTxOs.length === 0) {
             throw new Error("No contract UTxOs found - nothing to redeem");
         }
         const contractUTxO = contractUTxOs[6];
-
-
         console.log("contractUTxO ", contractUTxO);
-
         if (!contractUTxO.datum) {
             throw new Error("Missing datum in contract UTxO");
         }
         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
-
         console.log("currentDatum after parseLenderDatum ", currentDatum);
-
         console.log("currentDatum.lender ", currentDatum.lenders);
-
-        const userLenderIndex = currentDatum.lenders.findIndex(
-            ([pubKey, _]) => pubKey === pkh
-        );
-
+        const userLenderIndex = currentDatum.lenders.findIndex(([pubKey, _]) => pubKey === pkh);
         console.log("userLenderIndex ", userLenderIndex);
-
         if (userLenderIndex === -1) {
             throw new Error("User is not a lender in this contract");
         }
-        const [_, [currentBalance, currentRewardDebt]] =
-            currentDatum.lenders[userLenderIndex];
+        const [_, [currentBalance, currentRewardDebt]] = currentDatum.lenders[userLenderIndex];
         if (currentRewardDebt === 0n) {
             throw new Error("No rewards to redeem");
         }
         // Build updated lenders array
-        const updatedLenders: [string, [bigint, bigint]][] =
-            currentDatum.lenders.map(
-                (
-                    [pubKey, [balance, rewardDebt]],
-                    index
-                ): [string, [bigint, bigint]] => {
-                    if (index === userLenderIndex) {
-                        // Reset the rewardDebt to 0 after redeeming
-                        return [pubKey, [balance, 0n]];
-                    }
-                    return [pubKey, [balance, rewardDebt]];
-                }
-            );
+        const updatedLenders = currentDatum.lenders.map(([pubKey, [balance, rewardDebt]], index) => {
+            if (index === userLenderIndex) {
+                // Reset the rewardDebt to 0 after redeeming
+                return [pubKey, [balance, 0n]];
+            }
+            return [pubKey, [balance, rewardDebt]];
+        });
         // Build the new datum
-        const newDatum: LenderDatum = {
+        const newDatum = {
             adminsPkh: currentDatum.adminsPkh,
             totalPT: currentDatum.totalPT,
             totalReward: currentDatum.totalReward - currentRewardDebt,
@@ -754,26 +507,17 @@ export async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
             .collectFrom([contractUTxO], Data.to(redeemer))
             .attach.Script(validator)
             .pay.ToAddress(userAddress, {
-                [usdmAssetUnit]: currentRewardDebt,
-            })
-            .pay.ToContract(
-                contractAddress,
-                { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
-                remainingAssets
-            )
+            [usdmAssetUnit]: currentRewardDebt,
+        })
+            .pay.ToContract(contractAddress, { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) }, remainingAssets)
             .complete();
-    } catch (error) {
+    }
+    catch (error) {
         console.error("RedeemReward error:", error);
         throw error;
     }
 }
-
-
-
 // console.log(process.env.RAYAN_CODE);
-
-
-
 // export async function FundUSDM(
 //     lucid: LucidEvolution,
 //     returnAmount: bigint
@@ -781,24 +525,19 @@ export async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
 //     try {
 //         // Get the wallet's public key hash of Admin
 //         const adminPkh = await getPubKeyHash(lucid);
-
 //         // Fetch existing UTxO at the contract
 //         const contractUTxOs = await lucid.utxosAt(contractAddress);
-
 //         // Check if contract has any UTxOs
 //         if (contractUTxOs.length === 0) {
 //             throw new Error("No contract UTxOs found - nothing to return");
 //         }
-
 //         // Get the first contract UTxO (assuming single UTxO for simplicity)
 //         const contractUTxO = contractUTxOs[0];
 //         if (!contractUTxO.datum) {
 //             throw new Error("Missing datum in contract UTxO");
 //         }
-
 //         // Parse the existing on-chain datum
 //         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
-
 //         // Check that only the on‐chain adminPkh can call “AdminReturn”
 //         if (currentDatum.adminPkh !== adminPkh) {
 //             throw new Error("Only the admin can return funds");
@@ -808,12 +547,10 @@ export async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
 //             type: "AdminReturn",
 //             amount: returnAmount,
 //         });
-
 //         // Calculate remaining assets in the contract after returning
 //         const remainingAssets = { ...contractUTxO.assets };
 //         remainingAssets[ptAssetUnit] =
 //             (remainingAssets[ptAssetUnit] || 0n) + returnAmount;
-
 //         // Build the transaction
 //         return lucid
 //             .newTx()
@@ -830,54 +567,37 @@ export async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
 //         throw error;
 //     }
 // }
-export async function FundPlastik(
-    lucid: LucidEvolution,
-    preId: string,
-    roadmapId: string,
-    soldPlasticCredit: bigint
-) {
+export async function FundPlastik(lucid, preId, roadmapId, soldPlasticCredit) {
     try {
         // Get the wallet's public key hash of Admin
         const adminPkh = await getPubKeyHash(lucid);
         const adminAddress = await lucid.wallet().address();
         // console.log("adminPkh ", adminPkh);
         // console.log("adminAddress ", adminAddress);
-
         // 2. Find matching UTXO
         const utxos = await lucid.utxosAt(refiContractAddress);
         console.log("refi contract utxos ", utxos);
-
         const matchedUtxo = utxos.find((utxo) => {
-            if (!utxo.datum) return false;
-            const datum = Data.from(utxo.datum) as Constr<Data>;
-            return (
-                toText(datum.fields[0] as string) === preId &&
-                toText(datum.fields[1] as string) === roadmapId
-            );
+            if (!utxo.datum)
+                return false;
+            const datum = Data.from(utxo.datum);
+            return (toText(datum.fields[0]) === preId &&
+                toText(datum.fields[1]) === roadmapId);
         });
-
         console.log("matchedUtxos ", matchedUtxo);
-
         if (!matchedUtxo?.datum) {
-            throw new Error(
-                `No matching roadmap found for preId: ${preId}, roadmapId: ${roadmapId}`
-            );
+            throw new Error(`No matching roadmap found for preId: ${preId}, roadmapId: ${roadmapId}`);
         }
         // console.log("Matched UTXO datum:", Data.from(matchedUtxo.datum));
-
         const refiOldDatum = parseRoadmapDatum(Data.from(matchedUtxo.datum));
         console.log(refiOldDatum);
-
         const totalPlasticCredits = refiOldDatum.totalPlasticCredits;
         const newSoldCredits = refiOldDatum.soldPlasticCredits + soldPlasticCredit;
-
         // Calculate progress using integer math
         const progress = (newSoldCredits * 10000n) / totalPlasticCredits;
         console.log(progress);
-
         const newSentTokens = (progress * refiOldDatum.totalPlasticTokens) / 10000n;
         const recoveredPlastic = (progress * refiOldDatum.totalPlastic) / 10000n;
-
         // 4. Build new datum
         const updatedDatum = new Constr(0, [
             fromText(refiOldDatum.preId), // preId
@@ -896,154 +616,122 @@ export async function FundPlastik(
             BigInt(recoveredPlastic), // recoverPlastic
             fromText(refiOldDatum.createdAt), // createdAt
         ]);
-
         // console.log("Updated Datum:", updatedDatum);
-
         const refiRedeemer = Data.to(new Constr(0, [progress]));
         const plastikToLock = (newSentTokens * 80n) / 100n;
-
         /////////////////// ---------- Lending Staking Reward Contract ---------- ///////////////////
         // Fetch existing UTxO at the stake reward contract
         const contractUTxOs = await lucid.utxosAt(StackContractAddress);
-
         // Check if contract has any UTxOs
         if (contractUTxOs.length === 0) {
             throw new Error("No contract UTxOs found - nothing to withdraw");
         }
-
         // Get the first contract UTxO (assuming single UTxO for simplicity)
         const contractUTxO = contractUTxOs[0];
         if (!contractUTxO.datum) {
             throw new Error("Missing datum in contract UTxO");
         }
-
         // Parse the existing on-chain datum
         const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
         console.log("current Datum ", currentDatum);
-
         // Check that only the on-chain adminPkh can call “AdminWithdraw”
         if (!currentDatum.adminsPkh.includes(adminPkh)) {
             throw new Error("Only the admin can withdraw funds");
         }
-
         // Check if contract has enough PLASTIK tokens to send to escrow if not admin will fund it
         const contractPtBalance = contractUTxO.assets[ptAssetUnit] || 0n;
-
         if (contractPtBalance < plastikToLock) {
             throw new Error("Contract has insufficient PLASTIK tokens");
         }
-
         // Build the redeemer for AdminWithdraw action
         const redeemer = buildLenderAction({
             type: "FundPlastikToEscrow",
             amount: plastikToLock,
         });
-
         // Distibute the USDM rewards among the lenders
         ////// --------------------------/////////////
         const rewardMicro = soldPlasticCredit * precisionFactor;
-
         const newTotalReward = currentDatum.totalReward + rewardMicro;
-
         // Update each lender’s rewardDebt proportionally
-        const updatedLenders: [string, [bigint, bigint]][] =
-            currentDatum.lenders.map(([pubKey, [balance, rewardDebt]]) => {
-                // Keep rewardDebt as:(balance * newTotalReward) / totalPT
-                const newRewardDebt = (balance * newTotalReward) / currentDatum.totalPT;
-                return [pubKey, [balance, newRewardDebt]];
-            });
-
+        const updatedLenders = currentDatum.lenders.map(([pubKey, [balance, rewardDebt]]) => {
+            // Keep rewardDebt as:(balance * newTotalReward) / totalPT
+            const newRewardDebt = (balance * newTotalReward) / currentDatum.totalPT;
+            return [pubKey, [balance, newRewardDebt]];
+        });
         // Calculate remaining assets in the contract after withdrawal
         const remainingAssets = { ...contractUTxO.assets };
         remainingAssets[ptAssetUnit] =
             (remainingAssets[ptAssetUnit] || 0n) - plastikToLock;
         // add the new total reward to the contract
         remainingAssets[usdmAssetUnit] = newTotalReward;
-
         // Now build the new datum (keeping adminPkh, totalPT, lenders unchanged):
-        const newDatum: LenderDatum = {
+        const newDatum = {
             adminsPkh: currentDatum.adminsPkh,
             totalPT: currentDatum.totalPT,
             totalReward: newTotalReward,
             lenders: updatedLenders,
         };
         console.log("newDatum ", newDatum);
-
-        const refiAssets: Assets = {
+        const refiAssets = {
             [ptAssetUnit]: (matchedUtxo.assets[ptAssetUnit] || 0n) + plastikToLock,
             ...(usdmAssetUnit in matchedUtxo.assets
                 ? { [usdmAssetUnit]: matchedUtxo.assets[usdmAssetUnit] || 0n }
                 : {}),
         };
         console.dir(buildLenderDatum(newDatum), { depth: null });
-
         // Build the transaction
-        return (
-            lucid
-                .newTx()
-                .collectFrom([matchedUtxo], Data.to(refiRedeemer)) // Collect from Refi Contract
-                .attach.Script(StackValidator)
-                // .collectFrom([contractUTxO], Data.to(redeemer)) // Collect from Lender Contract
-                // .attach.Script(validator)
-                // .pay.ToContract(
-                //   // Pay to Lender Contract
-                //   contractAddress,
-                //   { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
-                //   remainingAssets
-                // )
-                .pay.ToContract(
-                    // Pay to Refi Contract
-                    StackContractAddress,
-                    { kind: "inline", value: Data.to(updatedDatum) },
-                    refiAssets
-                )
-                .addSigner(adminAddress)
-                .complete()
-        );
-    } catch (error: any) {
+        return (lucid
+            .newTx()
+            .collectFrom([matchedUtxo], Data.to(refiRedeemer)) // Collect from Refi Contract
+            .attach.Script(StackValidator)
+            // .collectFrom([contractUTxO], Data.to(redeemer)) // Collect from Lender Contract
+            // .attach.Script(validator)
+            // .pay.ToContract(
+            //   // Pay to Lender Contract
+            //   contractAddress,
+            //   { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
+            //   remainingAssets
+            // )
+            .pay.ToContract(
+        // Pay to Refi Contract
+        StackContractAddress, { kind: "inline", value: Data.to(updatedDatum) }, refiAssets)
+            .addSigner(adminAddress)
+            .complete());
+    }
+    catch (error) {
         console.error("AdminWithdraw error:", error.message);
         throw error;
     }
 }
-const getScriptUtxos = async (lucid: LucidEvolution, address: string) => {
+const getScriptUtxos = async (lucid, address) => {
     const utxos = await lucid.utxosAt(address);
     // console.log("Script UTxOs:", utxos);
     utxos.forEach((utxo) => {
-        if (!utxo.datum) return;
-        const parsed = Data.from(utxo.datum) as Constr<unknown>;
+        if (!utxo.datum)
+            return;
+        const parsed = Data.from(utxo.datum);
         // console.log("parsed ",parsed);
-
         console.dir(parsed, { depth: null });
     });
 };
-
 const lucid = await initLucid();
-
 // const seed = "nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute"
 // const adminSeed = lucid.selectWallet.fromSeed("nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute");
 // lucid.selectWallet.fromSeed("nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute");
-
-const adminSeed = process.env.MNEMONIC!
+const adminSeed = process.env.MNEMONIC;
 console.log(adminSeed);
-
-
 lucid.selectWallet.fromSeed(adminSeed);
 const wallet = lucid.wallet().address();
-
 console.log("Wallet-Address ", wallet);
-
-
 // 1.Example usage of deposit function
 // const tx = await deposit(lucid, 1n);
 // console.log("msg\n\n\n", tx);
-
 // if (!tx) {
 //     throw new Error("Failed to build deposit transaction.");
 // }
 // const signed = await tx.sign.withWallet().complete();
 // const txHash = await signed.submit();
 // console.log("Deposit tx submitted:", txHash);
-
 // 2.Example usage of withdraw function
 // const withdrawTx = await withdraw(lucid, 100n);
 // if (!withdrawTx) {
@@ -1052,7 +740,6 @@ console.log("Wallet-Address ", wallet);
 // const signedWithdraw = await withdrawTx.sign.withWallet().complete();
 // const withdrawTxHash = await signedWithdraw.submit();
 // console.log("Withdraw tx submitted:", withdrawTxHash);
-
 // 3.Example usage of Redeem Reward function
 // const redeemRewardTx = await redeemReward(lucid);
 // if (!redeemRewardTx) {
@@ -1061,7 +748,6 @@ console.log("Wallet-Address ", wallet);
 // const signedRedeemReward = await redeemRewardTx.sign.withWallet().complete();
 // const redeemRewardTxHash = await signedRedeemReward.submit();
 // console.log("redeemRewardTx tx submitted:", redeemRewardTxHash);
-
 // 4.Example usage of Initialize Rodmap function
 // const initializeRoadmapTx = await initializeRoadmap(
 //     lucid,
@@ -1083,7 +769,6 @@ console.log("Wallet-Address ", wallet);
 //     .complete();
 // const initializeRoadmapTxHash = await signedinitializeRoadmap.submit();
 // console.log("initializeRoadmap tx submitted:", initializeRoadmapTxHash);
-
 // 5.Example usage of Fund Plastik function
 const tx = await FundPlastik(lucid, "pre4", "roadmap4", 2n);
 if (!tx) {
@@ -1092,8 +777,5 @@ if (!tx) {
 const signed = await tx.sign.withWallet().complete();
 const txHash = await signed.submit();
 console.log("FundPlastik tx submitted:", txHash);
-
 // 6.Example usage of getScriptUtxos function
 // getScriptUtxos(lucid, StackContractAddress);
-
-

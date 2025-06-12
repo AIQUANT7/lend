@@ -23,39 +23,23 @@ const initLucid = async () => {
   return lucid;
 };
 
-// const validator: Validator = {
-//   type: "PlutusV2",
-//   script: process.env.CBOR!,
-// };
-
-// const refiValidator: Validator = {
-//   type: "PlutusV2",
-//   script: process.env.CBOR2!,
-// };
-
-// console.log("cbo1 ", process.env.CBOR);
-
 const validator: Validator = {
   type: "PlutusV2",
   script: process.env.CBOR!,
 };
-// console.log("STACK VALIDATOR   ", validator);
-// console.log("cbor2 ", process.env.CBOR2);
 
 const refiValidator: Validator = {
   type: "PlutusV2",
   script: process.env.CBOR2!,
 };
-const StackContractAddress = await initLucid().then((lucid) =>
+
+const contractAddress = await initLucid().then((lucid) =>
   validatorToAddress("Preprod", validator)
 );
-// console.log("Contract Address:", StackContractAddress);
 
-const RefiContractAddress = await initLucid().then((lucid) =>
+const refiContractAddress = await initLucid().then((lucid) =>
   validatorToAddress("Preprod", refiValidator)
 );
-
-// console.log("Refi Contract Address:", RefiContractAddress);
 
 // Roadmap Datum Interface
 interface RoadmapDatum {
@@ -164,7 +148,7 @@ const initializeRoadmap = async (
     const adminPkh = await getPubKeyHash(lucid);
 
     // Check if roadmap already exists
-    const utxos = await lucid.utxosAt(RefiContractAddress);
+    const utxos = await lucid.utxosAt(refiContractAddress);
     const matchedUtxo = utxos.find((utxo) => {
       if (!utxo.datum) return false;
       try {
@@ -206,7 +190,7 @@ const initializeRoadmap = async (
     const AMOUNT = 3_000_000n;
     const tx = await lucid
       .newTx()
-      .pay.ToContract(RefiContractAddress, {
+      .pay.ToContract(refiContractAddress, {
         kind: "inline",
         value: Data.to(datumToLock),
       })
@@ -368,9 +352,8 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
     const pkh = await getPubKeyHash(lucid);
 
     // 6.2) Fetch any existing UTxO at the contract
-    const contractUTxOs = await lucid.utxosAt(StackContractAddress);
+    const contractUTxOs = await lucid.utxosAt(contractAddress);
     const userAddress = await lucid.wallet().address();
-    console.log("userAddress", userAddress);
 
     // 6.3) If no UTxO ⇒ first deposit ever, we must initialize the datum with (adminPkh, totalPT, totalReward, lenders)
     if (contractUTxOs.length === 0) {
@@ -396,15 +379,13 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
 
     // 6.4) Otherwise, there is already a datum. We’ll pull the first UTxO (assume singular for simplicity)
     const contractUTxO = contractUTxOs[0];
-    // console.log("contractUTxO", contractUTxO.datum);
-
     if (!contractUTxO.datum) {
       throw new Error("Missing datum in contract UTxO");
     }
 
     // 6.5) Parse the existing on‐chain datum
     const currentDatum = parseLenderDatum(Data.from(contractUTxO.datum));
-    console.log("currentDatum", currentDatum);
+    console.log("currentDatum ", currentDatum);
 
     // 6.6) Build “updatedLenders” array
     let lenderExists = false;
@@ -455,7 +436,7 @@ async function deposit(lucid: LucidEvolution, depositAmount: bigint) {
       .collectFrom([contractUTxO], Data.to(redeemer))
       .collectFrom([userUtxo])
       .pay.ToContract(
-        StackContractAddress,
+        contractAddress,
         { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
         {
           ...contractUTxO.assets,
@@ -479,10 +460,9 @@ async function withdraw(
   try {
     // Get the wallet's public key hash
     const pkh = await getPubKeyHash(lucid);
-console.log("wallet's pkh ",pkh);
 
     // Fetch existing UTxO at the contract
-    const contractUTxOs = await lucid.utxosAt(StackContractAddress);
+    const contractUTxOs = await lucid.utxosAt(contractAddress);
     const userAddress = await lucid.wallet().address();
 
     // Check if contract has any UTxOs
@@ -577,7 +557,7 @@ console.log("wallet's pkh ",pkh);
     // If there are still lenders or remaining PT, pay back to contract
     if (newDatum.totalPT > 0n && newDatum.lenders.length > 0) {
       tx.pay.ToContract(
-        StackContractAddress,
+        contractAddress,
         { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
         remainingAssets
       );
@@ -614,7 +594,7 @@ async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
   try {
     const pkh = await getPubKeyHash(lucid);
     const userAddress = await lucid.wallet().address();
-    const contractUTxOs = await lucid.utxosAt(StackContractAddress);
+    const contractUTxOs = await lucid.utxosAt(contractAddress);
     if (contractUTxOs.length === 0) {
       throw new Error("No contract UTxOs found - nothing to redeem");
     }
@@ -671,13 +651,13 @@ async function redeemReward(lucid: LucidEvolution): Promise<unknown> {
         [usdmAssetUnit]: currentRewardDebt,
       })
       .pay.ToContract(
-        StackContractAddress,
+        contractAddress,
         { kind: "inline", value: Data.to(buildLenderDatum(newDatum)) },
         remainingAssets
       )
       .complete();
   } catch (error) {
-    console.error("RedeemReward error:", error);
+    console.error("RedeemReward error:", error.message);
     throw error;
   }
 }
@@ -694,7 +674,7 @@ async function FundPlastik(
     const adminAddress = await lucid.wallet().address();
 
     // 2. Find matching UTXO
-    const utxos = await lucid.utxosAt(RefiContractAddress);
+    const utxos = await lucid.utxosAt(refiContractAddress);
     const matchedUtxo = utxos.find((utxo) => {
       if (!utxo.datum) return false;
       const datum = Data.from(utxo.datum) as Constr<Data>;
@@ -718,7 +698,7 @@ async function FundPlastik(
 
     // Calculate progress using integer math
     const progress = (newSoldCredits * 10000n) / totalPlasticCredits;
-    console.log("progress ", progress);
+    console.log(progress);
 
     const newSentTokens = (progress * refiOldDatum.totalPlasticTokens) / 10000n;
     const recoveredPlastic = (progress * refiOldDatum.totalPlastic) / 10000n;
@@ -749,7 +729,7 @@ async function FundPlastik(
 
     /////////////////// ---------- Lending Staking Reward Contract ---------- ///////////////////
     // Fetch existing UTxO at the stake reward contract
-    const contractUTxOs = await lucid.utxosAt(StackContractAddress);
+    const contractUTxOs = await lucid.utxosAt(contractAddress);
 
     // Check if contract has any UTxOs
     if (contractUTxOs.length === 0) {
@@ -836,7 +816,7 @@ async function FundPlastik(
         // )
         .pay.ToContract(
           // Pay to Refi Contract
-          RefiContractAddress,
+          refiContractAddress,
           { kind: "inline", value: Data.to(updatedDatum) },
           refiAssets
         )
@@ -917,13 +897,13 @@ const getScriptUtxos = async (lucid: LucidEvolution, address: string) => {
 };
 
 const lucid = await initLucid();
-// lucid.selectWallet.fromSeed(process.env.ADMIN_SEED!);
-lucid.selectWallet.fromSeed(
-  "nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute"
-);
+lucid.selectWallet.fromSeed(process.env.MNEMONIC!);
+// lucid.selectWallet.fromSeed(
+//   "nest wink neither undo oven labor nature olympic file mandate glass inner cart theme initial fancy glow water mutual flame swap budget reform cute"
+// );
 
 // Example usage of deposit function
-const tx = await deposit(lucid, 1n);
+const tx = await deposit(lucid, 10n);
 if (!tx) {
   throw new Error("Failed to build deposit transaction.");
 }
@@ -972,13 +952,13 @@ console.log("Deposit tx submitted:", txHash);
 // console.log("initializeRoadmap tx submitted:", initializeRoadmapTxHash);
 
 // Example usage of Fund Plastik function
-const tx = await FundPlastik(lucid, "pre1", "roadmap1", 1n);
-if (!tx) {
-  throw new Error("Failed to build deposit transaction.");
-}
-const signed = await tx.sign.withWallet().complete();
-const txHash = await signed.submit();
-console.log("FundPlastik tx submitted:", txHash);
+// const tx = await FundPlastik(lucid, "pre1", "roadmap1", 1n);
+// if (!tx) {
+//   throw new Error("Failed to build deposit transaction.");
+// }
+// const signed = await tx.sign.withWallet().complete();
+// const txHash = await signed.submit();
+// console.log("FundPlastik tx submitted:", txHash);
 
 // Example usage of getScriptUtxos function
-// getScriptUtxos(lucid, StackContractAddress);
+// getScriptUtxos(lucid, contractAddress);
